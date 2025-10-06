@@ -1,8 +1,5 @@
-"use client";
-
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import './LiquidEther.css';
 
 export interface LiquidEtherProps {
   mouseForce?: number;
@@ -365,209 +362,187 @@ export default function LiquidEther({
     }
 
     const face_vert = `
-	attribute vec3 position;
-	uniform vec2 px;
-	uniform vec2 boundarySpace;
-	varying vec2 uv;
-	precision highp float;
-	void main(){
-	vec3 pos = position;
-	vec2 scale = 1.0 - boundarySpace * 2.0;
-	pos.xy = pos.xy * scale;
-	uv = vec2(0.5)+(pos.xy)*0.5;
-	gl_Position = vec4(pos, 1.0);
+  attribute vec3 position;
+  uniform vec2 px;
+  uniform vec2 boundarySpace;
+  varying vec2 uv;
+  precision highp float;
+  void main(){
+  vec3 pos = position;
+  vec2 scale = 1.0 - boundarySpace * 2.0;
+  pos.xy = pos.xy * scale;
+  uv = vec2(0.5)+(pos.xy)*0.5;
+  gl_Position = vec4(pos, 1.0);
 }
 `;
     const line_vert = `
-	attribute vec3 position;
-	uniform vec2 px;
-	precision highp float;
-	varying vec2 uv;
-	void main(){
-	vec3 pos = position;
-	uv = 0.5 + pos.xy * 0.5;
-	vec2 n = sign(pos.xy);
-	pos.xy = abs(pos.xy) - px * 1.0;
-	pos.xy *= n;
-	gl_Position = vec4(pos, 1.0);
+  attribute vec3 position;
+  uniform vec2 px;
+  precision highp float;
+  varying vec2 uv;
+  void main(){
+  vec3 pos = position;
+  uv = 0.5 + pos.xy * 0.5;
+  vec2 n = sign(pos.xy);
+  pos.xy = abs(pos.xy) - px * 1.0;
+  pos.xy *= n;
+  gl_Position = vec4(pos, 1.0);
 }
 `;
     const mouse_vert = `
-		precision highp float;
-		attribute vec3 position;
-		attribute vec2 uv;
-		uniform vec2 center;
-		uniform vec2 scale;
-		uniform vec2 px;
-		varying vec2 vUv;
-		void main(){
-		vec2 pos = position.xy * scale * 2.0 * px + center;
-		vUv = uv;
-		gl_Position = vec4(pos, 0.0, 1.0);
+    precision highp float;
+    attribute vec3 position;
+    attribute vec2 uv;
+    uniform vec2 center;
+    uniform vec2 scale;
+    uniform vec2 px;
+    varying vec2 vUv;
+    void main(){
+    vec2 pos = position.xy * scale * 2.0 * px + center;
+    vUv = uv;
+    gl_Position = vec4(pos, 0.0, 1.0);
 }
 `;
     const advection_frag = `
-		precision highp float;
-		uniform sampler2D velocity;
-		uniform float dt;
-		uniform bool isBFECC;
-		uniform vec2 fboSize;
-		uniform vec2 px;
-		varying vec2 uv;
-		void main(){
-		vec2 ratio = max(fboSize.x, fboSize.y) / fboSize;
-		if(isBFECC == false){
-				vec2 vel = texture2D(velocity, uv).xy;
-				vec2 uv2 = uv - vel * dt * ratio;
-				vec2 newVel = texture2D(velocity, uv2).xy;
-				gl_FragColor = vec4(newVel, 0.0, 0.0);
-		} else {
-				vec2 spot_new = uv;
-				vec2 vel_old = texture2D(velocity, uv).xy;
-				vec2 spot_old = spot_new - vel_old * dt * ratio;
-				vec2 vel_new1 = texture2D(velocity, spot_old).xy;
-				vec2 spot_new2 = spot_old + vel_new1 * dt * ratio;
-				vec2 error = spot_new2 - spot_new;
-				vec2 spot_new3 = spot_new - error / 2.0;
-				vec2 vel_2 = texture2D(velocity, spot_new3).xy;
-				vec2 spot_old2 = spot_new3 - vel_2 * dt * ratio;
-				vec2 newVel2 = texture2D(velocity, spot_old2).xy; 
-				gl_FragColor = vec4(newVel2, 0.0, 0.0);
-		}
+    precision highp float;
+    uniform sampler2D velocity;
+    uniform float dt;
+    uniform bool isBFECC;
+    uniform vec2 fboSize;
+    uniform vec2 px;
+    varying vec2 uv;
+    void main(){
+    vec2 ratio = max(fboSize.x, fboSize.y) / fboSize;
+    if(isBFECC == false){
+        vec2 vel = texture2D(velocity, uv).xy;
+        vec2 uv2 = uv - vel * dt * ratio;
+        vec2 newVel = texture2D(velocity, uv2).xy;
+        gl_FragColor = vec4(newVel, 0.0, 0.0);
+    } else {
+        vec2 spot_new = uv;
+        vec2 vel_old = texture2D(velocity, uv).xy;
+        vec2 spot_old = spot_new - vel_old * dt * ratio;
+        vec2 vel_new1 = texture2D(velocity, spot_old).xy;
+        vec2 spot_new2 = spot_old + vel_new1 * dt * ratio;
+        vec2 error = spot_new2 - spot_new;
+        vec2 spot_new3 = spot_new - error / 2.0;
+        vec2 vel_2 = texture2D(velocity, spot_new3).xy;
+        vec2 spot_old2 = spot_new3 - vel_2 * dt * ratio;
+        vec2 newVel2 = texture2D(velocity, spot_old2).xy; 
+        gl_FragColor = vec4(newVel2, 0.0, 0.0);
+    }
 }
 `;
     const color_frag = `
-		precision highp float;
-		uniform sampler2D velocity;
-		uniform sampler2D palette;
-		uniform vec4 bgColor;
-		varying vec2 uv;
-		void main(){
-		vec2 vel = texture2D(velocity, uv).xy;
-		float lenv = clamp(length(vel), 0.0, 1.0);
-		vec3 c = texture2D(palette, vec2(lenv, 0.5)).rgb;
-		vec3 outRGB = mix(bgColor.rgb, c, lenv);
-		float outA = mix(bgColor.a, 1.0, lenv);
-		gl_FragColor = vec4(outRGB, outA);
+    precision highp float;
+    uniform sampler2D velocity;
+    uniform sampler2D palette;
+    uniform vec4 bgColor;
+    varying vec2 uv;
+    void main(){
+    vec2 vel = texture2D(velocity, uv).xy;
+    float lenv = clamp(length(vel), 0.0, 1.0);
+    vec3 c = texture2D(palette, vec2(lenv, 0.5)).rgb;
+    vec3 outRGB = mix(bgColor.rgb, c, lenv);
+    float outA = mix(bgColor.a, 1.0, lenv);
+    gl_FragColor = vec4(outRGB, outA);
 }
 `;
     const divergence_frag = `
-		precision highp float;
-		uniform sampler2D velocity;
-		uniform float dt;
-		uniform vec2 px;
-		varying vec2 uv;
-		void main(){
-		float x0 = texture2D(velocity, uv-vec2(px.x, 0.0)).x;
-		float x1 = texture2D(velocity, uv+vec2(px.x, 0.0)).x;
-		float y0 = texture2D(velocity, uv-vec2(0.0, px.y)).y;
-		float y1 = texture2D(velocity, uv+vec2(0.0, px.y)).y;
-		float divergence = (x1 - x0 + y1 - y0) / 2.0;
-		gl_FragColor = vec4(divergence / dt);
+    precision highp float;
+    uniform sampler2D velocity;
+    uniform float dt;
+    uniform vec2 px;
+    varying vec2 uv;
+    void main(){
+    float x0 = texture2D(velocity, uv-vec2(px.x, 0.0)).x;
+    float x1 = texture2D(velocity, uv+vec2(px.x, 0.0)).x;
+    float y0 = texture2D(velocity, uv-vec2(0.0, px.y)).y;
+    float y1 = texture2D(velocity, uv+vec2(0.0, px.y)).y;
+    float divergence = (x1 - x0 + y1 - y0) / 2.0;
+    gl_FragColor = vec4(divergence / dt);
 }
 `;
     const externalForce_frag = `
-		precision highp float;
-		uniform vec2 force;
-		uniform vec2 center;
-		uniform vec2 scale;
-		uniform vec2 px;
-		varying vec2 vUv;
-		void main(){
-		vec2 circle = (vUv - 0.5) * 2.0;
-		float d = 1.0 - min(length(circle), 1.0);
-		d *= d;
-		gl_FragColor = vec4(force * d, 0.0, 1.0);
+    precision highp float;
+    uniform vec2 force;
+    uniform vec2 center;
+    uniform vec2 scale;
+    uniform vec2 px;
+    varying vec2 vUv;
+    void main(){
+    vec2 circle = (vUv - 0.5) * 2.0;
+    float d = 1.0 - min(length(circle), 1.0);
+    d *= d;
+    gl_FragColor = vec4(force * d, 0.0, 1.0);
 }
 `;
     const poisson_frag = `
-		precision highp float;
-		uniform sampler2D pressure;
-		uniform sampler2D divergence;
-		uniform vec2 px;
-		varying vec2 uv;
-		void main(){
-		float p0 = texture2D(pressure, uv + vec2(px.x * 2.0, 0.0)).r;
-		float p1 = texture2D(pressure, uv - vec2(px.x * 2.0, 0.0)).r;
-		float p2 = texture2D(pressure, uv + vec2(0.0, px.y * 2.0)).r;
-		float p3 = texture2D(pressure, uv - vec2(0.0, px.y * 2.0)).r;
-		float div = texture2D(divergence, uv).r;
-		float newP = (p0 + p1 + p2 + p3) / 4.0 - div;
-		gl_FragColor = vec4(newP);
+    precision highp float;
+    uniform sampler2D pressure;
+    uniform sampler2D divergence;
+    uniform vec2 px;
+    varying vec2 uv;
+    void main(){
+    float p0 = texture2D(pressure, uv + vec2(px.x * 2.0, 0.0)).r;
+    float p1 = texture2D(pressure, uv - vec2(px.x * 2.0, 0.0)).r;
+    float p2 = texture2D(pressure, uv + vec2(0.0, px.y * 2.0)).r;
+    float p3 = texture2D(pressure, uv - vec2(0.0, px.y * 2.0)).r;
+    float div = texture2D(divergence, uv).r;
+    float newP = (p0 + p1 + p2 + p3) / 4.0 - div;
+    gl_FragColor = vec4(newP);
 }
 `;
     const pressure_frag = `
-		precision highp float;
-		uniform sampler2D pressure;
-		uniform sampler2D velocity;
-		uniform vec2 px;
-		uniform float dt;
-		varying vec2 uv;
-		void main(){
-		float step = 1.0;
-		float p0 = texture2D(pressure, uv + vec2(px.x * step, 0.0)).r;
-		float p1 = texture2D(pressure, uv - vec2(px.x * step, 0.0)).r;
-		float p2 = texture2D(pressure, uv + vec2(0.0, px.y * step)).r;
-		float p3 = texture2D(pressure, uv - vec2(0.0, px.y * step)).r;
-		vec2 v = texture2D(velocity, uv).xy;
-		vec2 gradP = vec2(p0 - p1, p2 - p3) * 0.5;
-		v = v - gradP * dt;
-		gl_FragColor = vec4(v, 0.0, 1.0);
+    precision highp float;
+    uniform sampler2D pressure;
+    uniform sampler2D velocity;
+    uniform vec2 px;
+    uniform float dt;
+    varying vec2 uv;
+    void main(){
+    float step = 1.0;
+    float p0 = texture2D(pressure, uv + vec2(px.x * step, 0.0)).r;
+    float p1 = texture2D(pressure, uv - vec2(px.x * step, 0.0)).r;
+    float p2 = texture2D(pressure, uv + vec2(0.0, px.y * step)).r;
+    float p3 = texture2D(pressure, uv - vec2(0.0, px.y * step)).r;
+    vec2 v = texture2D(velocity, uv).xy;
+    vec2 gradP = vec2(p0 - p1, p2 - p3) * 0.5;
+    v = v - gradP * dt;
+    gl_FragColor = vec4(v, 0.0, 1.0);
 }
 `;
     const viscous_frag = `
-		precision highp float;
-		uniform sampler2D velocity;
-		uniform sampler2D velocity_new;
-		uniform float v;
-		uniform vec2 px;
-		uniform float dt;
-		varying vec2 uv;
-		void main(){
-		vec2 old = texture2D(velocity, uv).xy;
-		vec2 new0 = texture2D(velocity_new, uv + vec2(px.x * 2.0, 0.0)).xy;
-		vec2 new1 = texture2D(velocity_new, uv - vec2(px.x * 2.0, 0.0)).xy;
-		vec2 new2 = texture2D(velocity_new, uv + vec2(0.0, px.y * 2.0)).xy;
-		vec2 new3 = texture2D(velocity_new, uv - vec2(0.0, px.y * 2.0)).xy;
-		vec2 newv = 4.0 * old + v * dt * (new0 + new1 + new2 + new3);
-		newv /= 4.0 * (1.0 + v * dt);
-		gl_FragColor = vec4(newv, 0.0, 0.0);
+    precision highp float;
+    uniform sampler2D velocity;
+    uniform sampler2D velocity_new;
+    uniform float v;
+    uniform vec2 px;
+    uniform float dt;
+    varying vec2 uv;
+    void main(){
+    vec2 old = texture2D(velocity, uv).xy;
+    vec2 new0 = texture2D(velocity_new, uv + vec2(px.x * 2.0, 0.0)).xy;
+    vec2 new1 = texture2D(velocity_new, uv - vec2(px.x * 2.0, 0.0)).xy;
+    vec2 new2 = texture2D(velocity_new, uv + vec2(0.0, px.y * 2.0)).xy;
+    vec2 new3 = texture2D(velocity_new, uv - vec2(0.0, px.y * 2.0)).xy;
+    vec2 newv = 4.0 * old + v * dt * (new0 + new1 + new2 + new3);
+    newv /= 4.0 * (1.0 + v * dt);
+    gl_FragColor = vec4(newv, 0.0, 0.0);
 }
 `;
 
-    type Uniforms = Record<string, { value: THREE.Texture | number | THREE.Vector2 | THREE.Vector3 | THREE.Vector4 | boolean }>;
-
-    interface SimulationProps {
-      cellScale?: THREE.Vector2;
-      fboSize?: THREE.Vector2;
-      src?: { texture: THREE.Texture } | THREE.WebGLRenderTarget | null;
-      dst?: THREE.WebGLRenderTarget | null;
-      dst_?: THREE.WebGLRenderTarget | null;
-      dt?: number;
-      cursor_size?: number;
-      mouse_force?: number;
-      output0?: THREE.WebGLRenderTarget | null;
-      output1?: THREE.WebGLRenderTarget | null;
-    }
-
-    interface UpdateArgs {
-      dt?: number;
-      isBounce?: boolean;
-      BFECC?: boolean;
-      vel?: THREE.WebGLRenderTarget;
-      pressure?: THREE.WebGLRenderTarget;
-    }
+    type Uniforms = Record<string, { value: unknown }>;
 
     interface ShaderPassProps {
       material?: {
-        uniforms?: Uniforms;
-        vertexShader?: string;
-        fragmentShader?: string;
+        vertexShader: string;
+        fragmentShader: string;
+        uniforms: Uniforms;
       };
       output?: THREE.WebGLRenderTarget | null;
       output0?: THREE.WebGLRenderTarget | null;
       output1?: THREE.WebGLRenderTarget | null;
-      dst_?: THREE.WebGLRenderTarget | null;
     }
 
     class ShaderPass {
@@ -579,8 +554,10 @@ export default function LiquidEther({
       geometry: THREE.BufferGeometry | null = null;
       plane: THREE.Mesh | null = null;
       constructor(props: ShaderPassProps) {
-        this.props = props || {};
-        this.uniforms = this.props.material?.uniforms;
+        this.props = props;
+        if (this.props.material) {
+          this.uniforms = this.props.material.uniforms;
+        }
       }
       init() {
         this.scene = new THREE.Scene();
@@ -600,25 +577,41 @@ export default function LiquidEther({
       }
     }
 
+    interface SimProps {
+      cellScale: THREE.Vector2;
+      fboSize: THREE.Vector2;
+      src: THREE.WebGLRenderTarget | null;
+      dst: THREE.WebGLRenderTarget | null;
+      dst_?: THREE.WebGLRenderTarget | null;
+      dt: number;
+      boundarySpace: THREE.Vector2;
+      viscous?: number;
+      cursor_size?: number;
+      src_p?: THREE.WebGLRenderTarget | null;
+      src_v?: THREE.WebGLRenderTarget | null;
+    }
+
     class Advection extends ShaderPass {
       line!: THREE.LineSegments;
-      constructor(simProps: SimulationProps) {
+      constructor(simProps: SimProps) {
         super({
           material: {
             vertexShader: face_vert,
             fragmentShader: advection_frag,
             uniforms: {
-              boundarySpace: { value: simProps.cellScale || new THREE.Vector2() },
-              px: { value: simProps.cellScale || new THREE.Vector2() },
-              fboSize: { value: simProps.fboSize || new THREE.Vector2() },
-              velocity: { value: (simProps.src as { texture: THREE.Texture })?.texture || new THREE.Texture() },
-              dt: { value: simProps.dt || 0.016 },
+              boundarySpace: { value: simProps.cellScale },
+              px: { value: simProps.cellScale },
+              fboSize: { value: simProps.fboSize },
+              velocity: { value: simProps.src!.texture },
+              dt: { value: simProps.dt },
               isBFECC: { value: true }
             }
           },
-          output: simProps.dst || null
+          output: simProps.dst
         });
-        this.uniforms = this.props.material?.uniforms;
+        if (this.props.material) {
+          this.uniforms = this.props.material.uniforms;
+        }
         this.init();
       }
       init() {
@@ -639,9 +632,8 @@ export default function LiquidEther({
         this.line = new THREE.LineSegments(boundaryG, boundaryM);
         this.scene!.add(this.line);
       }
-      update(args?: UpdateArgs) {
-        const updateArgs = args || {};
-        const { dt, isBounce, BFECC } = updateArgs;
+      update(args?: { dt?: number; isBounce?: boolean; BFECC?: boolean }) {
+        const { dt, isBounce, BFECC } = args || {};
         if (!this.uniforms) return;
         if (typeof dt === 'number') this.uniforms.dt.value = dt;
         if (typeof isBounce === 'boolean') this.line.visible = isBounce;
@@ -652,11 +644,11 @@ export default function LiquidEther({
 
     class ExternalForce extends ShaderPass {
       mouse!: THREE.Mesh;
-      constructor(simProps: SimulationProps) {
+      constructor(simProps: Partial<SimProps>) {
         super({ output: simProps.dst });
-        this.initMouse(simProps);
+        this.initExternal(simProps);
       }
-      initMouse(simProps: SimulationProps) {
+      initExternal(simProps: Partial<SimProps>) {
         super.init();
         const mouseG = new THREE.PlaneGeometry(1, 1);
         const mouseM = new THREE.RawShaderMaterial({
@@ -665,21 +657,21 @@ export default function LiquidEther({
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           uniforms: {
-            px: { value: simProps.cellScale || new THREE.Vector2() },
+            px: { value: simProps.cellScale },
             force: { value: new THREE.Vector2(0, 0) },
             center: { value: new THREE.Vector2(0, 0) },
-            scale: { value: new THREE.Vector2(simProps.cursor_size || 1, simProps.cursor_size || 1) }
+            scale: { value: new THREE.Vector2(simProps.cursor_size, simProps.cursor_size) }
           }
         });
         this.mouse = new THREE.Mesh(mouseG, mouseM);
         this.scene!.add(this.mouse);
       }
-      update(args?: SimulationProps) {
-        const props = args || {};
-        const forceX = (Mouse.diff.x / 2) * (props.mouse_force || 0);
-        const forceY = (Mouse.diff.y / 2) * (props.mouse_force || 0);
-        const cellScale = props.cellScale || new THREE.Vector2(1, 1);
-        const cursorSize = props.cursor_size || 0;
+      update(props?: { mouse_force?: number; cellScale?: THREE.Vector2; cursor_size?: number }) {
+        const updateProps = props || {};
+        const forceX = (Mouse.diff.x / 2) * (updateProps.mouse_force || 0);
+        const forceY = (Mouse.diff.y / 2) * (updateProps.mouse_force || 0);
+        const cellScale = updateProps.cellScale || { x: 1, y: 1 };
+        const cursorSize = updateProps.cursor_size || 0;
         const cursorSizeX = cursorSize * cellScale.x;
         const cursorSizeY = cursorSize * cellScale.y;
         const centerX = Math.min(
@@ -699,18 +691,18 @@ export default function LiquidEther({
     }
 
     class Viscous extends ShaderPass {
-      constructor(simProps: SimulationProps & { boundarySpace?: THREE.Vector2; viscous?: number }) {
+      constructor(simProps: SimProps) {
         super({
           material: {
             vertexShader: face_vert,
             fragmentShader: viscous_frag,
             uniforms: {
-              boundarySpace: { value: simProps.boundarySpace || new THREE.Vector2() },
-              velocity: { value: (simProps.src as { texture: THREE.Texture })?.texture || new THREE.Texture() },
-              velocity_new: { value: (simProps.dst_ as THREE.WebGLRenderTarget)?.texture || new THREE.Texture() },
-              v: { value: simProps.viscous || 1 },
-              px: { value: simProps.cellScale || new THREE.Vector2() },
-              dt: { value: simProps.dt || 0.016 }
+              boundarySpace: { value: simProps.boundarySpace },
+              velocity: { value: simProps.src!.texture },
+              velocity_new: { value: simProps.dst_!.texture },
+              v: { value: simProps.viscous || 0 },
+              px: { value: simProps.cellScale },
+              dt: { value: simProps.dt }
             }
           },
           output: simProps.dst,
@@ -719,53 +711,50 @@ export default function LiquidEther({
         });
         this.init();
       }
-      update(args?: { viscous?: number; iterations?: number; dt?: number }) {
-        const updateArgs = args || {};
-        const { viscous, iterations, dt } = updateArgs;
+      update(args?: { viscous?: number; iterations?: number; dt?: number }): THREE.WebGLRenderTarget | undefined {
+        const { viscous, iterations, dt } = args || {};
         if (!this.uniforms) return;
-        let fbo_in: THREE.WebGLRenderTarget | null, fbo_out: THREE.WebGLRenderTarget | null;
+        let fbo_in: THREE.WebGLRenderTarget | undefined | null = undefined;
+        let fbo_out: THREE.WebGLRenderTarget | undefined | null = undefined;
         if (typeof viscous === 'number') this.uniforms.v.value = viscous;
         const iter = iterations ?? 0;
-        fbo_out = null;
         for (let i = 0; i < iter; i++) {
           if (i % 2 === 0) {
-            fbo_in = this.props.output0 || null;
-            fbo_out = this.props.output1 || null;
+            fbo_in = this.props.output0;
+            fbo_out = this.props.output1;
           } else {
-            fbo_in = this.props.output1 || null;
-            fbo_out = this.props.output0 || null;
+            fbo_in = this.props.output1;
+            fbo_out = this.props.output0;
           }
-          if (fbo_in && fbo_out) {
-            this.uniforms.velocity_new.value = fbo_in.texture;
-            this.props.output = fbo_out;
-            if (typeof dt === 'number') this.uniforms.dt.value = dt;
-            super.update();
-          }
+          if (!fbo_in || !fbo_out) continue;
+          this.uniforms.velocity_new.value = fbo_in.texture;
+          this.props.output = fbo_out;
+          if (typeof dt === 'number') this.uniforms.dt.value = dt;
+          super.update();
         }
-        return fbo_out;
+        return fbo_out || undefined;
       }
     }
 
     class Divergence extends ShaderPass {
-      constructor(simProps: SimulationProps & { boundarySpace?: THREE.Vector2 }) {
+      constructor(simProps: SimProps) {
         super({
           material: {
             vertexShader: face_vert,
             fragmentShader: divergence_frag,
             uniforms: {
-              boundarySpace: { value: simProps.boundarySpace || new THREE.Vector2() },
-              velocity: { value: (simProps.src as { texture: THREE.Texture })?.texture || new THREE.Texture() },
-              px: { value: simProps.cellScale || new THREE.Vector2() },
-              dt: { value: simProps.dt || 0.016 }
+              boundarySpace: { value: simProps.boundarySpace },
+              velocity: { value: simProps.src!.texture },
+              px: { value: simProps.cellScale },
+              dt: { value: simProps.dt }
             }
           },
           output: simProps.dst
         });
         this.init();
       }
-      update(args?: { vel?: THREE.WebGLRenderTarget }) {
-        const updateArgs = args || {};
-        const { vel } = updateArgs;
+      update(args?: { vel?: THREE.WebGLRenderTarget | null | undefined }) {
+        const { vel } = args || {};
         if (this.uniforms && vel) {
           this.uniforms.velocity.value = vel.texture;
         }
@@ -774,28 +763,28 @@ export default function LiquidEther({
     }
 
     class Poisson extends ShaderPass {
-      constructor(simProps: SimulationProps & { boundarySpace?: THREE.Vector2 }) {
+      constructor(simProps: SimProps) {
         super({
           material: {
             vertexShader: face_vert,
             fragmentShader: poisson_frag,
             uniforms: {
-              boundarySpace: { value: simProps.boundarySpace || new THREE.Vector2() },
-              pressure: { value: (simProps.dst_ as THREE.WebGLRenderTarget)?.texture || new THREE.Texture() },
-              divergence: { value: (simProps.src as { texture: THREE.Texture })?.texture || new THREE.Texture() },
-              px: { value: simProps.cellScale || new THREE.Vector2() }
+              boundarySpace: { value: simProps.boundarySpace },
+              pressure: { value: simProps.dst_!.texture },
+              divergence: { value: simProps.src!.texture },
+              px: { value: simProps.cellScale }
             }
           },
           output: simProps.dst,
-          output0: simProps.dst_,
+          output0: simProps.dst_ || null,
           output1: simProps.dst
         });
         this.init();
       }
-      update(args?: { iterations?: number }) {
-        const updateArgs = args || {};
-        const { iterations } = updateArgs;
-        let p_in: THREE.WebGLRenderTarget | null | undefined, p_out: THREE.WebGLRenderTarget | null | undefined;
+      update(args?: { iterations?: number }): THREE.WebGLRenderTarget | undefined {
+        const { iterations } = args || {};
+        let p_in: THREE.WebGLRenderTarget | undefined | null = undefined;
+        let p_out: THREE.WebGLRenderTarget | undefined | null = undefined;
         const iter = iterations ?? 0;
         for (let i = 0; i < iter; i++) {
           if (i % 2 === 0) {
@@ -805,26 +794,27 @@ export default function LiquidEther({
             p_in = this.props.output1;
             p_out = this.props.output0;
           }
-          if (this.uniforms && p_in) this.uniforms.pressure.value = p_in.texture;
+          if (!p_in || !p_out) continue;
+          if (this.uniforms) this.uniforms.pressure.value = p_in.texture;
           this.props.output = p_out;
           super.update();
         }
-        return p_out;
+        return p_out || undefined;
       }
     }
 
     class Pressure extends ShaderPass {
-      constructor(simProps: SimulationProps & { boundarySpace?: THREE.Vector2; src_p?: { texture: THREE.Texture }; src_v?: { texture: THREE.Texture } }) {
+      constructor(simProps: SimProps) {
         super({
           material: {
             vertexShader: face_vert,
             fragmentShader: pressure_frag,
             uniforms: {
-              boundarySpace: { value: simProps.boundarySpace || new THREE.Vector2() },
-              pressure: { value: simProps.src_p?.texture || new THREE.Texture() },
-              velocity: { value: simProps.src_v?.texture || new THREE.Texture() },
-              px: { value: simProps.cellScale || new THREE.Vector2() },
-              dt: { value: simProps.dt || 0.016 }
+              boundarySpace: { value: simProps.boundarySpace },
+              pressure: { value: simProps.src_p!.texture },
+              velocity: { value: simProps.src_v!.texture },
+              px: { value: simProps.cellScale },
+              dt: { value: simProps.dt }
             }
           },
           output: simProps.dst
@@ -832,8 +822,7 @@ export default function LiquidEther({
         this.init();
       }
       update(args?: { vel?: THREE.WebGLRenderTarget; pressure?: THREE.WebGLRenderTarget }) {
-        const updateArgs = args || {};
-        const { vel, pressure } = updateArgs;
+        const { vel, pressure } = args || {};
         if (this.uniforms && vel && pressure) {
           this.uniforms.velocity.value = vel.texture;
           this.uniforms.pressure.value = pressure.texture;
@@ -907,43 +896,57 @@ export default function LiquidEther({
           cellScale: this.cellScale,
           fboSize: this.fboSize,
           dt: this.options.dt,
-          src: this.fbos.vel_0,
-          dst: this.fbos.vel_1
+          src: this.fbos.vel_0!,
+          dst: this.fbos.vel_1!,
+          boundarySpace: this.boundarySpace,
+          viscous: this.options.viscous
         });
         this.externalForce = new ExternalForce({
           cellScale: this.cellScale,
           cursor_size: this.options.cursor_size,
-          dst: this.fbos.vel_1
+          dst: this.fbos.vel_1!,
+          fboSize: this.fboSize,
+          src: null,
+          dt: this.options.dt,
+          boundarySpace: this.boundarySpace,
+          viscous: this.options.viscous
         });
         this.viscous = new Viscous({
           cellScale: this.cellScale,
           boundarySpace: this.boundarySpace,
           viscous: this.options.viscous,
-          src: this.fbos.vel_1,
-          dst: this.fbos.vel_viscous1,
-          dst_: this.fbos.vel_viscous0,
+          src: this.fbos.vel_1!,
+          dst: this.fbos.vel_viscous1!,
+          dst_: this.fbos.vel_viscous0!,
+          fboSize: this.fboSize,
           dt: this.options.dt
         });
         this.divergence = new Divergence({
           cellScale: this.cellScale,
           boundarySpace: this.boundarySpace,
-          src: this.fbos.vel_viscous0,
-          dst: this.fbos.div,
+          src: this.fbos.vel_viscous0!,
+          dst: this.fbos.div!,
+          fboSize: this.fboSize,
           dt: this.options.dt
         });
         this.poisson = new Poisson({
           cellScale: this.cellScale,
           boundarySpace: this.boundarySpace,
-          src: this.fbos.div,
-          dst: this.fbos.pressure_1,
-          dst_: this.fbos.pressure_0
+          src: this.fbos.div!,
+          dst: this.fbos.pressure_1!,
+          dst_: this.fbos.pressure_0!,
+          fboSize: this.fboSize,
+          dt: this.options.dt,
+          viscous: this.options.viscous
         });
         this.pressure = new Pressure({
           cellScale: this.cellScale,
           boundarySpace: this.boundarySpace,
-          src_p: this.fbos.pressure_0 ? { texture: this.fbos.pressure_0.texture } : undefined,
-          src_v: this.fbos.vel_viscous0 ? { texture: this.fbos.vel_viscous0.texture } : undefined,
-          dst: this.fbos.vel_0,
+          src_p: this.fbos.pressure_0!,
+          src_v: this.fbos.vel_viscous0!,
+          dst: this.fbos.vel_0!,
+          fboSize: this.fboSize,
+          src: null,
           dt: this.options.dt
         });
       }
@@ -968,18 +971,17 @@ export default function LiquidEther({
           mouse_force: this.options.mouse_force,
           cellScale: this.cellScale
         });
-        let vel: THREE.WebGLRenderTarget | null = this.fbos.vel_1;
+        let vel: THREE.WebGLRenderTarget | null | undefined = this.fbos.vel_1;
         if (this.options.isViscous) {
-          const viscousResult = this.viscous.update({
+          vel = this.viscous.update({
             viscous: this.options.viscous,
             iterations: this.options.iterations_viscous,
             dt: this.options.dt
           });
-          vel = viscousResult || vel;
         }
         this.divergence.update({ vel: vel || undefined });
         const pressure = this.poisson.update({ iterations: this.options.iterations_poisson });
-        this.pressure.update({ vel: vel || undefined, pressure: pressure || undefined });
+        this.pressure.update({ vel: vel || undefined, pressure });
       }
     }
 
@@ -1024,13 +1026,13 @@ export default function LiquidEther({
     }
 
     interface WebGLManagerProps {
-      $wrapper: HTMLElement;
+      $wrapper: HTMLDivElement;
       autoDemo: boolean;
       autoSpeed: number;
-      autoResumeDelay: number;
-      autoRampDuration: number;
       autoIntensity: number;
       takeoverDuration: number;
+      autoResumeDelay: number;
+      autoRampDuration: number;
     }
 
     class WebGLManager implements LiquidEtherWebGL {
@@ -1272,5 +1274,11 @@ export default function LiquidEther({
     autoRampDuration
   ]);
 
-  return <div ref={mountRef} className={`liquid-ether-container ${className || ''}`} style={style} />;
+  return (
+    <div
+      ref={mountRef}
+      className={`w-full h-full relative overflow-hidden pointer-events-none touch-none ${className || ''}`}
+      style={style}
+    />
+  );
 }
